@@ -1,3 +1,4 @@
+#![feature(is_some_and)]
 #![warn(missing_docs)]
 //#![deny(warnings)]
 //! Provides a client interface for [AWS X-Ray](https://aws.amazon.com/xray/)
@@ -30,6 +31,7 @@ pub use crate::{
     segment_id::SegmentId,
     trace_id::TraceId,
     tracing::XRaySubscriber,
+    tracing::aws_metadata,
 };
 
 /// Type alias for Results which may return `xray::Errors`

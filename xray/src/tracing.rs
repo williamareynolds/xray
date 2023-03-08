@@ -6,7 +6,7 @@ use log::{debug, warn};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::RwLock;
-use tracing::Span;
+use tracing::{debug_span, field, Span};
 use tracing_core::{Event, Field, Subscriber};
 use tracing_core::field::Visit;
 use tracing_core::span::{Attributes, Id, Record};
@@ -31,6 +31,7 @@ pub(crate) struct SpanContext {
     // compatibility, let's keepit an Option<>
     parent_id: Option<SegmentId>,
     segment: Option<Subsegment>,
+    is_meta_wrapper: bool,
 }
 
 impl SpanContext {
@@ -40,10 +41,11 @@ impl SpanContext {
             sampling: header.sampling_decision,
             parent_id: header.parent_id,
             segment: None,
+            is_meta_wrapper: false,
         }
     }
 
-    fn child(parent: &SpanContext) -> Self {
+    fn child(parent: &SpanContext, is_meta_wrapper: bool) -> Self {
         Self {
             trace_id: parent.trace_id.clone(),
             sampling: parent.sampling,
@@ -52,6 +54,7 @@ impl SpanContext {
                 .map(|segment| segment.id.clone())
                 .or(parent.parent_id.clone()),
             segment: None,
+            is_meta_wrapper,
         }
     }
 }
@@ -70,11 +73,11 @@ impl XRayTracer {
         self.spans.insert(id.clone(), id.clone());
     }
 
-    pub fn start_child(&mut self, id: &Id, parent_id: &Id) {
+    pub fn start_child(&mut self, id: &Id, parent_id: &Id, is_meta_wrapper: bool) {
         if let Some(parent) = self.get_span_context(&parent_id) {
             debug!("Starting child context {:?} for {:?}.", parent, id);
 
-            let mut current = SpanContext::child(parent);
+            let mut current = SpanContext::child(parent, is_meta_wrapper);
             current.segment = Some(self.start_segment(&current));
 
             self.segments.insert(id.clone(), current);
@@ -93,6 +96,11 @@ impl XRayTracer {
         // we need to check if there is any segment - might be root of span, we need to close it
         self.segments.remove(id)
             .and_then(|context| context.segment)
+    }
+
+    fn is_meta_wrapper(&self, id: &Id) -> bool {
+        self.get_span_context(id)
+            .is_some_and(|context| context.is_meta_wrapper)
     }
 
     fn start_segment(&self, parent: &SpanContext) -> Subsegment {
@@ -183,28 +191,32 @@ impl XRaySubscriber {
 
 impl<S: Subscriber + for<'span> LookupSpan<'span>> Layer<S> for XRaySubscriber {
     fn on_new_span(&self, attrs: &Attributes, id: &Id, ctx: Context<S>) {
-        match attrs.metadata().name() {
-            // start of Lambda invocation
-            "Lambda runtime invoke" => {
-                attrs.record(self.tracer.write().unwrap().visitor_for(id).borrow_mut());
-            }
-            // AWS API call
-            "send_operation" => {
-                if let Some(parent) = ctx.span(id)
-                    .and_then(|span| span.parent())
-                    .map(|span| span.id())
-                {
-                    self.tracer.write().unwrap().start_child(id, &parent);
+        let name = attrs.metadata().name();
+        let mut tracer = self.tracer.write().unwrap();
+
+        // start of Lambda context
+        if name == "Lambda runtime invoke" {
+            attrs.record(tracer.visitor_for(id).borrow_mut());
+        }
+        // check if we have any scope (any X-Ray-TraceId)
+        else if let Some(parent) = ctx.span(id)
+            .and_then(|span| span.parent())
+            .map(|span| span.id())
+            .as_ref()
+        {
+            match name {
+                // this is our wrapper that allows custom meta-data; in case AWS Rust SDK
+                // implements some interceptors in future it won't be needed
+                "aws_metadata" => {
+                    tracer.start_child(id, parent, true);
                 }
-            }
-            // track unknown spans
-            _ => {
-                // keep span ID mapping for tracing segment frames
-                if let Some(parent) = ctx.span(id)
-                    .and_then(|span| span.parent())
-                    .map(|span| span.id())
-                {
-                    self.tracer.write().unwrap().continue_segment(id, &parent);
+                // AWS API call - unless we already explicitly started meta-wrapper span
+                "send_operation" if !tracer.is_meta_wrapper(parent) => {
+                    tracer.start_child(id, parent, false);
+                }
+                // for any other case we just keep span ID mapping for tracing segment frames
+                _ => {
+                    tracer.continue_segment(id, parent);
                 }
             }
         }
@@ -288,6 +300,12 @@ impl Visit for Subsegment {
             "operation" => if let Some(aws) = self.aws.as_mut() {
                 aws.operation = Some(value.into());
             },
+            "region" => if let Some(aws) = self.aws.as_mut() {
+                aws.region = Some(value.into());
+            },
+            "table_name" => if let Some(aws) = self.aws.as_mut() {
+                aws.table_name = Some(value.into());
+            },
             "service" => self.name = segment_for_service(value).into(),
             _ => ()
         }
@@ -298,10 +316,21 @@ impl Visit for Subsegment {
             "http_response" => {
                 // holy crap, this is veyr unsafe!
                 self.visit_response(
-                    unsafe { &*(value as *const _ as *const &dyn Any as *const &HttpResponse<Bytes>) }
+                    unsafe { *(value as *const _ as *const &dyn Any as *const &HttpResponse<Bytes>) }
                 );
             }
             _ => ()
         }
     }
+}
+
+pub fn aws_metadata(region: Option<&str>, table_name: Option<&str>) -> Span {
+    let span = debug_span!("aws_metadata", region = field::Empty, table_name = field::Empty);
+    if let Some(value) = region {
+        span.record("region", value);
+    }
+    if let Some(value) = table_name {
+        span.record("table_name", value);
+    }
+    span
 }
