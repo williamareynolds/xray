@@ -8,7 +8,7 @@ use std::{
     str::FromStr,
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum SamplingDecision {
     /// Sampled indicates the current segment has been
     /// sampled and will be sent to the X-Ray daemon.
@@ -61,7 +61,7 @@ impl Default for SamplingDecision {
 }
 
 /// Parsed representation of `X-Amzn-Trace-Id` request header
-#[derive(PartialEq, Debug, Default)]
+#[derive(PartialEq, Debug, Default, Clone)]
 pub struct Header {
     pub(crate) trace_id: TraceId,
     pub(crate) parent_id: Option<SegmentId>,

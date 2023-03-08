@@ -19,6 +19,7 @@ mod recorder;
 pub mod segment;
 mod segment_id;
 mod trace_id;
+mod tracing;
 
 pub use crate::{
     epoch::Seconds,
@@ -28,6 +29,7 @@ pub use crate::{
     segment::*,
     segment_id::SegmentId,
     trace_id::TraceId,
+    tracing::XRaySubscriber,
 };
 
 /// Type alias for Results which may return `xray::Errors`
