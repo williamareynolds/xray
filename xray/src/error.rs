@@ -1,14 +1,14 @@
-use failure::Fail;
+use thiserror::Error;
 use serde_json::Error as JsonError;
 use std::io::Error as IOError;
 
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum Error {
     /// Returned for general IO errors
-    #[fail(display = "IO Error")]
+    #[error("IO Error")]
     IO(IOError),
     /// Returned for serialization related errors
-    #[fail(display = "Json Error")]
+    #[error("Json Error")]
     Json(JsonError),
 }
 

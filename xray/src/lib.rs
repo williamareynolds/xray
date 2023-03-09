@@ -16,7 +16,6 @@ mod error;
 mod header;
 mod hexbytes;
 mod lambda;
-mod recorder;
 pub mod segment;
 mod segment_id;
 mod trace_id;
@@ -26,7 +25,6 @@ pub use crate::{
     epoch::Seconds,
     error::Error,
     header::Header,
-    recorder::{OpenSegment, OpenSubsegment, Recorder},
     segment::*,
     segment_id::SegmentId,
     trace_id::TraceId,
