@@ -1,5 +1,29 @@
-[workspace]
-members = [
-  "xray",
-  "rusoto"
-]
+[package]
+name = "xray-tracing"
+version = "0.0.1"
+authors = ["softprops <d.tangren@gmail.com>"]
+edition = "2018"
+description = "AWS X-Ray daemon client for Rust"
+license = "MIT"
+keywords = ["aws", "x-ray", "tracing", "distributed-tracing"]
+readme = "README.md"
+documentation = "https://docs.rs/xray"
+homepage = "https://github.com/softprops/xray"
+repository = "https://github.com/softprops/xray"
+
+[dependencies]
+bytes = "1.4.0"
+http = "0.2.8"
+log = "0.4"
+rand = "0.8.5"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+thiserror = "1.0.38"
+tracing = "0.1.37"
+tracing-core = "0.1.30"
+tracing-subscriber = "0.3.16"
+lazy_static = "1.4"
+
+[dev-dependencies]
+env_logger = "0.6"
