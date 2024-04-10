@@ -1,4 +1,3 @@
-#![feature(is_some_and)]
 #![warn(missing_docs)]
 //#![deny(warnings)]
 //! Provides a client interface for [AWS X-Ray](https://aws.amazon.com/xray/)
@@ -22,14 +21,8 @@ mod trace_id;
 mod tracing;
 
 pub use crate::{
-    epoch::Seconds,
-    error::Error,
-    header::Header,
-    segment::*,
-    segment_id::SegmentId,
-    trace_id::TraceId,
-    tracing::XRaySubscriber,
-    tracing::aws_metadata,
+    epoch::Seconds, error::Error, header::Header, segment::*, segment_id::SegmentId,
+    trace_id::TraceId, tracing::aws_metadata, tracing::XRaySubscriber,
 };
 
 /// Type alias for Results which may return `xray::Errors`
@@ -84,10 +77,7 @@ impl Client {
     }
 
     /// send a segment to the xray daemon this client is connected to
-    pub fn send<S>(
-        &self,
-        data: &S,
-    ) -> Result<()>
+    pub fn send<S>(&self, data: &S) -> Result<()>
     where
         S: Serialize,
     {
