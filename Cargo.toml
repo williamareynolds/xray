@@ -11,6 +11,9 @@ documentation = "https://docs.rs/xray"
 homepage = "https://github.com/softprops/xray"
 repository = "https://github.com/softprops/xray"
 
+[features]
+nightly = []
+
 [dependencies]
 bytes = "1.4.0"
 http = "0.2.8"

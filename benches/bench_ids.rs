@@ -1,5 +1,6 @@
 // run cargo +nightly bench
 
+#![cfg(feature = "nightly")]
 #![feature(test)]
 extern crate test;
 

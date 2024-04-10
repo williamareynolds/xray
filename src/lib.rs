@@ -1,4 +1,3 @@
-#![feature(is_some_and)]
 #![warn(missing_docs)]
 //#![deny(warnings)]
 //! Provides a client interface for [AWS X-Ray](https://aws.amazon.com/xray/)
